@@ -1,0 +1,29 @@
+
+
+
+
+
+Game
+ - Bank
+ - Board
+ - Players
+
+Bank
+ - Resources
+ - Resource Card
+
+Board
+ - Hex
+ - Ports
+
+Players
+ - Player
+
+Player
+ - Resources
+ - Victory Points
+ - Income
+ - Port Trades
+
+Trade
+ - 
