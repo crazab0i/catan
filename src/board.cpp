@@ -13,15 +13,9 @@ Point::Point(int id, int tile_id) : id(PointID(id)), tile_id(TileID(tile_id)) {}
 Edge::Edge(int id) : id(EdgeID(id)) {}
 Tile::Tile(bool hasRobber, 
            int id, 
-           int diceValue, 
-           TileType type, 
-           std::vector<int> &points, 
-           std::vector<int> &edges) : hasRobber(hasRobber), id(TileID(id)), diceValue(diceValue), type(type)
-        {
+           int diceValue,
+           TileType type) : hasRobber(hasRobber), id(id), diceValue(diceValue), type(type) {}
 
-
-
-}
 void Tile::printTile() {
     std::cout << "tile id: " << static_cast<int>(id);
     std::cout << "\ntile type: " << TileType_to_string(type);
