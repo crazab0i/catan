@@ -107,6 +107,7 @@ constexpr const char* TileType_to_string(TileType type) {
         case TileType::Brick: return "Brick";
         case TileType::Ore: return "Ore";
         case TileType::Desert: return "Desert";
+        default: return "";
     }
 }
 

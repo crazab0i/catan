@@ -51,10 +51,10 @@ void Board::createBoard() {
     std::vector<int> dice_values = {5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11};
     auto dice_it = begin(dice_values);
 
-    for (int i = 0; i < types.size(); ++i) {
+    for (size_t i = 0; i < types.size(); ++i) {
         bool hasRobber = types[i] == TileType::Desert;
         
-        tiles.emplace_back(hasRobber, i, dice_it++, types[i]);
+        tiles.emplace_back(hasRobber, i, *dice_it++, types[i]);
     }
 
 }
@@ -80,6 +80,11 @@ void Board::printBoard() {
     for (int i = 16; i < 19; ++i) {
         tiles.at(i).printTile();
     }
+}
+
+Board::Board() {
+    tiles.reserve(19);
+    createBoard();
 }
 
 } // end Catan namespace
