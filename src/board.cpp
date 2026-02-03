@@ -1,6 +1,12 @@
 #include "board.hpp"
 
+#include <iostream>
+#include <algorithm>
+#include <random>
+
 namespace Catan {
+
+namespace Board {
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -29,19 +35,24 @@ void Tile::printTile() {
     for (const auto edge : tileEdges[id]) {
         std::cout << static_cast<int>(edge) << ", ";
     }
-    std::cout << "\ntile type: " << TileType_to_string(type) << "\n";
 }
 
+} // end Board namespace
 
-void Board::createBoard() {
-    std::vector<TileType> types = {
-        TileType::Sheep, TileType::Sheep, TileType::Sheep, TileType::Sheep,
-        TileType::Wood, TileType::Wood, TileType::Wood, TileType::Wood,
-        TileType::Wheat, TileType::Wheat, TileType::Wheat, TileType::Wheat,
-        TileType::Brick, TileType::Brick, TileType::Brick,
-        TileType::Ore, TileType::Ore, TileType::Ore,
-        TileType::Desert,
-    };
+//////////////////////////////////////////////////////////////////////////
+//
+//      Board Class
+//
+/////////////////////////////////////////////////////////////////////////
+
+
+void GameBoard::createBoard() {
+    std::vector<Board::TileType> types;
+    types.reserve(Board::NUM_TILES);
+
+    for (auto [type, count] : Board::tileCounts) {
+        types.insert(types.end(), count, type);
+    }
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -51,39 +62,26 @@ void Board::createBoard() {
     std::vector<int> dice_values = {5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11};
     auto dice_it = begin(dice_values);
 
+    tiles.clear();
+    tiles.reserve(Board::NUM_TILES);
     for (size_t i = 0; i < types.size(); ++i) {
-        bool hasRobber = types[i] == TileType::Desert;
         
-        tiles.emplace_back(hasRobber, i, *dice_it++, types[i]);
+        if (types[i] == Board::TileType::Desert) {
+            tiles.emplace_back(true, i, -1, types[i]);
+        } else {
+            tiles.emplace_back(false, i, *dice_it++, types[i]);
+        }
     }
 
 }
 
-void Board::printBoard() {
-    std::cout << "==================== Row: 1 ====================\n\n";
-    for (int i = 0; i < 3; ++i) {
-        tiles.at(i).printTile();
-    }
-    std::cout << "==================== Row: 2 ====================\n\n";
-    for (int i = 3; i < 7; ++i) {
-        tiles.at(i).printTile();
-    }
-    std::cout << "==================== Row: 3 ====================\n\n";
-    for (int i = 7; i < 12; ++i) {
-        tiles.at(i).printTile();
-    }
-    std::cout << "==================== Row: 4 ====================\n";
-    for (int i = 12; i < 16; ++i) {
-        tiles.at(i).printTile();
-    }
-    std::cout << "==================== Row: 5 ====================\n";
-    for (int i = 16; i < 19; ++i) {
+void GameBoard::printBoard() {
+    for (int i = 0; i < Board::NUM_TILES; ++i) {
         tiles.at(i).printTile();
     }
 }
 
-Board::Board() {
-    tiles.reserve(19);
+GameBoard::GameBoard() {
     createBoard();
 }
 

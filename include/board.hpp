@@ -3,9 +3,6 @@
 
 #include <array>
 #include <vector>
-#include <random>
-#include <algorithm>
-#include <iostream>
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -27,12 +24,17 @@
 
 namespace Catan {
 
+namespace Board {
+
 using TileID = uint8_t;
 using PointID = uint8_t;
 using EdgeID = uint8_t;
 
+constexpr size_t NUM_POINTS_PER_TILE = 6;
+constexpr size_t NUM_EDGES_PER_TILE = 6;
+constexpr size_t NUM_TILES = 19;
 
-inline constexpr std::array<std::array<PointID, 6>, 19> tilePoints = {{
+inline constexpr std::array<std::array<PointID, NUM_POINTS_PER_TILE>, NUM_TILES> tilePoints = {{
     // Row 1
     {{0, 1, 2, 10, 9, 8}},
     {{2, 3, 4, 12, 11, 10}},
@@ -59,7 +61,7 @@ inline constexpr std::array<std::array<PointID, 6>, 19> tilePoints = {{
     {{43, 44, 45, 53, 52, 51}}
 }};
 
-inline constexpr std::array<std::array<EdgeID, 6>, 19> tileEdges = {{
+inline constexpr std::array<std::array<EdgeID, NUM_EDGES_PER_TILE>, NUM_TILES> tileEdges = {{
     // Row 1
     {{ 0,  1,  7, 12, 11,  6}},
     {{ 2,  3,  8, 14, 13,  7}},
@@ -97,17 +99,35 @@ enum class TileType {
     Brick,
     Ore,
     Desert,
+    _Count,          
 };
+
+constexpr int   NUM_SHEEP_TILE = 4;
+constexpr int    NUM_WOOD_TILE = 4;
+constexpr int   NUM_WHEAT_TILE = 4;
+constexpr int   NUM_BRICK_TILE = 3;
+constexpr int     NUM_ORE_TILE = 3;
+constexpr int  NUM_DESERT_TILE = 1;
+constexpr size_t NUM_TYPE_TILE = static_cast<size_t>(TileType::_Count);
+
+    inline constexpr std::array<std::pair<TileType, int>, NUM_TYPE_TILE> tileCounts = {{
+        {TileType::Sheep,   NUM_SHEEP_TILE},
+        {TileType::Wood,    NUM_WOOD_TILE},
+        {TileType::Wheat,   NUM_WHEAT_TILE},
+        {TileType::Brick,   NUM_BRICK_TILE},
+        {TileType::Ore,     NUM_ORE_TILE},
+        {TileType::Desert,  NUM_DESERT_TILE},
+    }};
 
 constexpr const char* TileType_to_string(TileType type) {
     switch (type) {
-        case TileType::Sheep: return "Sheep";
-        case TileType::Wood: return "Wood";
-        case TileType::Wheat: return "Wheat";
-        case TileType::Brick: return "Brick";
-        case TileType::Ore: return "Ore";
-        case TileType::Desert: return "Desert";
-        default: return "";
+        case TileType::Sheep:   return "Sheep";
+        case TileType::Wood:    return "Wood";
+        case TileType::Wheat:   return "Wheat";
+        case TileType::Brick:   return "Brick";
+        case TileType::Ore:     return "Ore";
+        case TileType::Desert:  return "Desert";
+        default:                return "";
     }
 }
 
@@ -140,14 +160,16 @@ struct Tile {
     void printTile();
 };
 
-class Board {
+} // end Board namespace
+
+class GameBoard {
     private:
-        std::vector<Tile> tiles;
+        std::vector<Board::Tile> tiles;
 
     public:
         void createBoard();
         void printBoard();
-        Board();
+        GameBoard();
 };
 
 
