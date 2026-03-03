@@ -76,22 +76,26 @@ constexpr const char* DevType_to_string(Development type) {
 
 class Bank {
     private:
-        static std::array<int, Card::NUM_RESOURCE_TYPE> resources;
+        std::array<int, Card::NUM_RESOURCE_TYPE> resources;
 
         std::vector<Card::Development> developmentDeck;
         
 
-        void _reset_resources();
-        void _reset_developmentDeck();
+        void _resetResources();
+        void _resetDevelopmentDeck();
 
-        void _print_resources();
-        void _print_developmentDeck();
+        void _printResources() const;
+        void _printDevelopmentDeck() const;
     public:
+        void printBank() const;
+
         void reset();
+
 
         bool deal_cards(std::vector<int> counts, Card::Resource type);
         bool trade(int count, Card::Resource inType, Card::Resource outType);
         Card::Development draw_developmentCard();
 
+        Bank();
 };
 } // end Catan namespace

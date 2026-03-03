@@ -12,13 +12,13 @@ namespace Catan {
 //
 /////////////////////////////////////////////////////////////////////////
 
-void Bank::_reset_resources() {
-    for (int i = 0; i < Card::NUM_RESOURCE_TYPE; ++i) {
+void Bank::_resetResources() {
+    for (size_t i = 0; i < Card::NUM_RESOURCE_TYPE; ++i) {
         resources[i] = Card::NUM_RESOURCE;
     }
 }
 
-void Bank::_reset_developmentDeck() {
+void Bank::_resetDevelopmentDeck() {
     developmentDeck.clear();
     developmentDeck.reserve(Card::NUM_DEV_CARDS);
 
@@ -32,7 +32,7 @@ void Bank::_reset_developmentDeck() {
     std::shuffle(begin(developmentDeck), end(developmentDeck), gen);
 }
 
-void Bank::_print_resources() {
+void Bank::_printResources() const {
     std::cout << "NUM_SHEEP: "  << resources[static_cast<size_t>(Card::Resource::Sheep)] << "\n";
     std::cout << "NUM_WOOD: "   << resources[static_cast<size_t>(Card::Resource::Wood)] << "\n";
     std::cout << "NUM_WHEAT: "  << resources[static_cast<size_t>(Card::Resource::Wheat)] << "\n";
@@ -40,15 +40,23 @@ void Bank::_print_resources() {
     std::cout << "NUM_ORE: "    << resources[static_cast<size_t>(Card::Resource::Ore)] << "\n";
 }
 
-void Bank::_print_developmentDeck() {
+void Bank::_printDevelopmentDeck() const {
     for (int i = Card::NUM_DEV_CARDS - 1; i >= 0; --i) {
-        std::cout << Card::DevType_to_string(developmentDeck[i]);
+        std::cout << Card::DevType_to_string(developmentDeck[i]) << "\n";
     }
 }
 
+void Bank::printBank() const {
+    std::cout << "==================================== Printing Bank ====================================\n";
+    std::cout << "==================================== Printing Resources Deck ====================================\n";
+    _printResources();
+    std::cout << "==================================== Printing Development Card Deck ==============================\n";
+    _printDevelopmentDeck();
+}
+
 void Bank::reset() {
-    _reset_resources();
-    _reset_developmentDeck();
+    _resetResources();
+    _resetDevelopmentDeck();
 }
 
 Bank::Bank() {

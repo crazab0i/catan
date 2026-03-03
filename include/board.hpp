@@ -3,6 +3,10 @@
 
 #include <array>
 #include <vector>
+#include <cstdint>
+#include <unordered_set>
+#include <ranges>
+#include <limits>
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -34,6 +38,9 @@ constexpr size_t NUM_POINTS_PER_TILE = 6;
 constexpr size_t NUM_EDGES_PER_TILE = 6;
 constexpr size_t NUM_TILES = 19;
 
+constexpr size_t NUM_POINTS = 54;
+constexpr size_t NUM_EDGES = 72;
+
 inline constexpr std::array<std::array<PointID, NUM_POINTS_PER_TILE>, NUM_TILES> tilePoints = {{
     // Row 1
     {{0, 1, 2, 10, 9, 8}},
@@ -59,37 +66,6 @@ inline constexpr std::array<std::array<PointID, NUM_POINTS_PER_TILE>, NUM_TILES>
     {{39, 40, 41, 49, 48, 47}},
     {{41, 42, 43, 51, 50, 49}},
     {{43, 44, 45, 53, 52, 51}}
-}};
-
-inline constexpr std::array<std::array<EdgeID, NUM_EDGES_PER_TILE>, NUM_TILES> tileEdges = {{
-    // Row 1
-    {{ 0,  1,  7, 12, 11,  6}},
-    {{ 2,  3,  8, 14, 13,  7}},
-    {{ 4,  5,  9, 16, 15,  8}},
-
-    // Row 2
-    {{10, 11, 19, 25, 24, 18}},
-    {{12, 13, 20, 27, 26, 19}},
-    {{14, 15, 21, 29, 28, 20}},
-    {{16, 17, 22, 31, 30, 21}},
-
-    // Row 3
-    {{23, 24, 34, 40, 39, 33}},
-    {{25, 26, 35, 42, 41, 34}},
-    {{27, 28, 36, 44, 43, 35}},
-    {{29, 30, 37, 46, 45, 36}},
-    {{31, 32, 38, 48, 47, 37}},
-
-    // Row 4
-    {{39, 40, 50, 55, 54, 49}},
-    {{41, 42, 51, 57, 56, 50}},
-    {{43, 44, 52, 59, 58, 51}},
-    {{45, 46, 53, 61, 60, 52}},
-
-    // Row 5
-    {{54, 55, 63, 67, 66, 62}},
-    {{56, 57, 64, 69, 68, 63}},
-    {{58, 59, 65, 71, 70, 64}}
 }};
 
 enum class TileType {
@@ -131,23 +107,46 @@ constexpr const char* TileType_to_string(TileType type) {
     }
 }
 
-enum class Building {
+enum class BuildingType {
     Road,
     Settlement,
     City,
+    Unbuilt,
 };  
+struct Building {
+    int owner_id = -1;
+    BuildingType building_type = BuildingType::Unbuilt;
+
+    void printBuilding();
+};
+
+constexpr int MAX_ADJACENT_TILES = 3;
+constexpr TileID NON_TILE = std::numeric_limits<TileID>::max();
+constexpr int MAX_ADJACENT_EDGES_TO_POINT = 3;
+
+constexpr EdgeID NON_EDGE = std::numeric_limits<EdgeID>::max();
 
 struct Point {
     PointID id;
-    TileID tile_id;
+    std::array<TileID, MAX_ADJACENT_TILES> tiles {NON_TILE, NON_TILE, NON_TILE};
+    std::array<EdgeID, MAX_ADJACENT_EDGES_TO_POINT>  edges {NON_EDGE, NON_EDGE, NON_EDGE};
+    Building building;
 
-    Point(int id, int tile_id);
+    Point(int id);
 };
+
+constexpr int MAX_ADJACENT_EDGES_TO_EDGE = 4;
 
 struct Edge {
     EdgeID id;
+    
+    PointID a;
+    PointID b;
 
-    Edge(int id);
+    std::array<EdgeID, MAX_ADJACENT_EDGES_TO_EDGE> edges {NON_EDGE, NON_EDGE, NON_EDGE, NON_EDGE};
+    Building building;
+
+    Edge(int id, PointID a, PointID b);
 };
 
 struct Tile {
@@ -157,7 +156,7 @@ struct Tile {
     TileType type;
 
     Tile(bool hasRobber, int id, int diceValue, TileType type);
-    void printTile();
+    void printTile() const;
 };
 
 } // end Board namespace
@@ -165,11 +164,29 @@ struct Tile {
 class GameBoard {
     private:
         std::vector<Board::Tile> tiles;
+        std::vector<std::vector<int>> tilesDieIndex;
+
+        std::vector<Board::Point> points;
+        std::unordered_set<int> validPoints;
+
+        std::vector<Board::Edge> edges;
+        std::unordered_set<int> validEdges;
+
+        void _printTiles() const;
+        void _printPoints() const;
+        void _printEdges() const;
 
     public:
         void createBoard();
-        void printBoard();
+        void printBoard() const;
+        
         GameBoard();
+
+
+
+        void placeBuilding();
+        void placeRobber();
+
 };
 
 

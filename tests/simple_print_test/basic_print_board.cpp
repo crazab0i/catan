@@ -4,7 +4,7 @@
 
 using namespace Catan;
 int main() {
-    Board board;
-    board.printBoard();  
-    return 0; 
+    GameBoard board;
+
+    board.printBoard();
 }

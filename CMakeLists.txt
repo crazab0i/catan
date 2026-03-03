@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.22)
 project(catan LANGUAGES CXX)
 
 add_library(catan STATIC
+    src/bank.cpp
     src/board.cpp
+    src/game.cpp
+    src/player.cpp
 )
 
 add_library(catan::catan ALIAS catan)
