@@ -204,6 +204,9 @@ class GameBoard {
 
         Card::Resource _mapTileToCard(Board::TileType type) const;
 
+        void _createTiles();
+        void _createPointsAndEdges();
+        void _createValidPointsAndEdges();
         void _createPortPoints();
 
     public:
@@ -212,11 +215,13 @@ class GameBoard {
         
         GameBoard();
 
+        const std::unordered_set<Board::PointID>& getValidPoints() const;
+        const std::unordered_set<Board::EdgeID>& getValidEdges() const;
 
         using BuildDestination = std::variant<Board::TileID, Board::EdgeID>;
-        void placeBuilding(Board::Building &&building, const BuildDestination &destination);
+        std::optional<Board::PortType> placeBuilding(Board::Building &&building, const BuildDestination &destination);
 
-        std::vector<Board::TileID> getValidRobberDestinations() const;
+        const std::vector<Board::TileID> getValidRobberDestinations() const;
         std::unordered_set<PlayerID> placeRobber(Board::TileID destination);
 
         std::unordered_map<Card::Resource, std::vector<int>> getRollPayout(const int dieVal) const;

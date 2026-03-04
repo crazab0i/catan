@@ -1,8 +1,11 @@
 #include "bank.hpp"
 
+#include <cstddef>
+#include <numeric>
 #include <random>
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
 namespace Catan {
 
@@ -12,15 +15,20 @@ namespace Catan {
 //
 /////////////////////////////////////////////////////////////////////////
 
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //      Private
+    //
+    /////////////////////////////////////////////////////////////////////////
+
 void Bank::_resetResources() {
     for (size_t i = 0; i < Card::NUM_RESOURCE_TYPE; ++i) {
-        resources[i] = Card::NUM_RESOURCE;
+        resourceCounts[i] = Card::NUM_RESOURCE;
     }
 }
 
 void Bank::_resetDevelopmentDeck() {
     developmentDeck.clear();
-    developmentDeck.reserve(Card::NUM_DEV_CARDS);
 
     for (auto [type, count] : Card::developmentCounts) {
         developmentDeck.insert(end(developmentDeck), count, type);
@@ -33,11 +41,11 @@ void Bank::_resetDevelopmentDeck() {
 }
 
 void Bank::_printResources() const {
-    std::cout << "NUM_SHEEP: "  << resources[static_cast<size_t>(Card::Resource::Sheep)] << "\n";
-    std::cout << "NUM_WOOD: "   << resources[static_cast<size_t>(Card::Resource::Wood)] << "\n";
-    std::cout << "NUM_WHEAT: "  << resources[static_cast<size_t>(Card::Resource::Wheat)] << "\n";
-    std::cout << "NUM_BRICK: "  << resources[static_cast<size_t>(Card::Resource::Brick)] << "\n";
-    std::cout << "NUM_ORE: "    << resources[static_cast<size_t>(Card::Resource::Ore)] << "\n";
+    std::cout << "NUM_SHEEP: "  << resourceCounts[static_cast<size_t>(Card::Resource::Sheep)] << "\n";
+    std::cout << "NUM_WOOD: "   << resourceCounts[static_cast<size_t>(Card::Resource::Wood)] << "\n";
+    std::cout << "NUM_WHEAT: "  << resourceCounts[static_cast<size_t>(Card::Resource::Wheat)] << "\n";
+    std::cout << "NUM_BRICK: "  << resourceCounts[static_cast<size_t>(Card::Resource::Brick)] << "\n";
+    std::cout << "NUM_ORE: "    << resourceCounts[static_cast<size_t>(Card::Resource::Ore)] << "\n";
 }
 
 void Bank::_printDevelopmentDeck() const {
@@ -45,6 +53,12 @@ void Bank::_printDevelopmentDeck() const {
         std::cout << Card::DevType_to_string(developmentDeck[i]) << "\n";
     }
 }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //      Public
+    //
+    /////////////////////////////////////////////////////////////////////////
 
 void Bank::printBank() const {
     std::cout << "==================================== Printing Bank ====================================\n";
@@ -62,5 +76,45 @@ void Bank::reset() {
 Bank::Bank() {
     reset();
 }
+
+const std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE>& Bank::getResourceCounts() const {
+    return resourceCounts;
+}
+
+bool Bank::dealCards(const std::vector<Economy::CardCount> &playerPayout, const Card::Resource type) {
+    auto total = std::accumulate(begin(playerPayout), end(playerPayout), 0);
+    if (total > resourceCounts[static_cast<size_t>(type)]) return false;
+
+    resourceCounts[static_cast<size_t>(type)] -= total;
+    return true;
+}
+
+void Bank::buyBuildable(const Economy::Buildable type) {
+    
+    for (size_t i = 0; i < Card::NUM_RESOURCE_TYPE; ++i) {
+        resourceCounts[i] += Economy::buildCosts[static_cast<size_t>(type)][i];
+    }
+}
+
+void Bank::trade(const Economy::CardCount inCount, const Economy::CardCount outCount, const Card::Resource inType, const Card::Resource outType) {
+    if (outCount > resourceCounts[static_cast<size_t>(outType)]) throw std::runtime_error("tried to trade out more cards than are available");
+
+    resourceCounts[static_cast<size_t>(inType)] += inCount;
+    resourceCounts[static_cast<size_t>(outType)] -= outCount;
+}
+
+bool Bank::developmentCardAvailable() {
+    return !developmentDeck.empty();
+}
+
+Card::Development Bank::drawDevelopmentCard() {
+    if (developmentDeck.empty()) throw std::runtime_error("tried to draw development card on empty development card deck");
+
+    auto topCard = developmentDeck.front();
+    developmentDeck.pop_front();
+    return topCard;
+}
+
+
 
 } // end Catan namespace

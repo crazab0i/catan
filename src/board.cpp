@@ -6,10 +6,12 @@
 #include <cstddef>
 #include <iostream>
 #include <algorithm>
+#include <optional>
 #include <random>
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace Catan {
@@ -140,46 +142,7 @@ Card::Resource GameBoard::_mapTileToCard(Board::TileType type) const {
     }
 }
 
-void GameBoard::_createPortPoints() {
-    constexpr int NUM_GENERAL_PORTS = 8;
-    constexpr int NUM_SPECIAL_PORTS = 2;
-    constexpr size_t NUM_SPECIAL_PORT_TYPES = static_cast<size_t>(Board::PortType::_Count);
-
-    std::array<Board::PointID, NUM_GENERAL_PORTS> generalPointIDs = {0, 1, 26, 37, 47, 48, 50, 51};
-    std::array<std::array<Board::PointID, NUM_SPECIAL_PORTS>, NUM_SPECIAL_PORT_TYPES> specialPointIDs = {{
-        {45, 46},
-        {7, 17},
-        {3, 4},
-        {28, 38},
-        {14, 15},
-    }};
-
-    std::array<Board::PortType, NUM_SPECIAL_PORT_TYPES> specialPorts = {
-        Board::PortType::Sheep, 
-        Board::PortType::Wood, 
-        Board::PortType::Wheat, 
-        Board::PortType::Brick, 
-        Board::PortType::Ore
-    };
-
-    for (const auto pointID : generalPointIDs) {
-        pointPorts[pointID] = Board::PortType::General;
-    }
-
-    for (size_t i = 0; i < NUM_SPECIAL_PORT_TYPES; ++i) {
-        for (const auto pointID : specialPointIDs[i]) {
-            pointPorts[pointID] = specialPorts[i];
-        }
-    }
-}
-
-    //////////////////////////////////////////////////////////////////////////
-    //
-    //      Public
-    //
-    /////////////////////////////////////////////////////////////////////////
-
-void GameBoard::createBoard() {
+void GameBoard::_createTiles() {
     std::vector<Board::TileType> types;
     types.reserve(Board::NUM_TILES);
 
@@ -213,7 +176,9 @@ void GameBoard::createBoard() {
             dice_it++;
         }
     }
+}
 
+void GameBoard::_createPointsAndEdges() {
     points.reserve(Board::NUM_POINTS);
     for (Board::PointID id = 0; id < Board::NUM_POINTS; ++id) {
         points.emplace_back(id);
@@ -267,8 +232,6 @@ void GameBoard::createBoard() {
             }
             id++;
         }
-
-        _createPortPoints();
     }
 
     for (const auto &point : points) {
@@ -286,7 +249,9 @@ void GameBoard::createBoard() {
             }
         }
     }
+}
 
+void GameBoard::_createValidPointsAndEdges() {
     for (Board::PointID id = 0; id < Board::NUM_POINTS; ++id) {
         validPoints.insert(id);
     }
@@ -294,6 +259,54 @@ void GameBoard::createBoard() {
     for (Board::EdgeID id = 0; id < Board::NUM_EDGES; ++id) {
         validEdges.insert(id);
     }
+}
+
+void GameBoard::_createPortPoints() {
+    constexpr int NUM_GENERAL_PORTS = 8;
+    constexpr int NUM_SPECIAL_PORTS = 2;
+    constexpr size_t NUM_SPECIAL_PORT_TYPES = static_cast<size_t>(Board::PortType::_Count);
+
+    std::array<Board::PointID, NUM_GENERAL_PORTS> generalPointIDs = {0, 1, 26, 37, 47, 48, 50, 51};
+    std::array<std::array<Board::PointID, NUM_SPECIAL_PORTS>, NUM_SPECIAL_PORT_TYPES> specialPointIDs = {{
+        {45, 46},
+        {7, 17},
+        {3, 4},
+        {28, 38},
+        {14, 15},
+    }};
+
+    std::array<Board::PortType, NUM_SPECIAL_PORT_TYPES> specialPorts = {
+        Board::PortType::Sheep, 
+        Board::PortType::Wood, 
+        Board::PortType::Wheat, 
+        Board::PortType::Brick, 
+        Board::PortType::Ore
+    };
+
+    for (const auto pointID : generalPointIDs) {
+        pointPorts[pointID] = Board::PortType::General;
+    }
+
+    for (size_t i = 0; i < NUM_SPECIAL_PORT_TYPES; ++i) {
+        for (const auto pointID : specialPointIDs[i]) {
+            pointPorts[pointID] = specialPorts[i];
+        }
+    }
+}
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //      Public
+    //
+    /////////////////////////////////////////////////////////////////////////
+
+void GameBoard::createBoard() {
+    
+    _createTiles();
+
+    _createPointsAndEdges();
+    
+    _createValidPointsAndEdges();
 
     _createPortPoints();
 }
@@ -314,9 +327,17 @@ GameBoard::GameBoard() {
     createBoard();
 }
 
-void GameBoard::placeBuilding(Board::Building &&building, const BuildDestination &destination) {
+const std::unordered_set<Board::PointID>& GameBoard::getValidPoints() const {
+    return validPoints;
+}
+
+const std::unordered_set<Board::EdgeID>& GameBoard::getValidEdges() const {
+    return validEdges;
+}
+
+std::optional<Board::PortType> GameBoard::placeBuilding(Board::Building &&building, const BuildDestination &destination) {
     
-    std::visit([&](auto &&arg) {
+    return std::visit([&](auto &&arg) -> std::optional<Board::PortType> {
         using T = std::decay_t<decltype(arg)>;
 
         if constexpr (std::is_same_v<T, Board::PointID>) {
@@ -332,7 +353,9 @@ void GameBoard::placeBuilding(Board::Building &&building, const BuildDestination
 
             auto it = validPoints.find(arg);
             if (it != validPoints.end()) validPoints.erase(it);
-
+            // erase adjacent points
+            // return port if
+            if (pointPorts[arg]) return pointPorts[arg];
         } else {
 
             if (building.buildingType != Board::BuildingType::Road)
@@ -346,10 +369,11 @@ void GameBoard::placeBuilding(Board::Building &&building, const BuildDestination
             auto it = validEdges.find(arg);
             if (it != validEdges.end()) validEdges.erase(it);
         }
+        return std::nullopt;
     }, destination);
 }
 
-std::vector<Board::TileID> GameBoard::getValidRobberDestinations() const {
+const std::vector<Board::TileID> GameBoard::getValidRobberDestinations() const {
     
     std::vector<Board::TileID> valid(Board::NUM_TILES);
     std::iota(begin(valid), end(valid), Board::TileID{0});

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <deque>
 #include <vector>
 
 //////////////////////////////////////////////////////////////////////////
@@ -20,8 +21,6 @@
 namespace Catan {
 
 namespace Card {
-
-
 
 enum class Resource {
     Sheep, 
@@ -71,31 +70,62 @@ constexpr const char* DevType_to_string(Development type) {
         default:                        return "";
     }
 }
-
 } // end Card namespace
+
+namespace Economy {
+
+enum class Buildable {
+    Road,
+    Settlement,
+    City,
+    DevelopmentCard,
+    _Count,
+};
+
+constexpr size_t NUM_BUILDABLES = static_cast<size_t>(Buildable::_Count);
+
+using CardCount = int;
+
+// cost of road, settlement, city, devCard
+inline constexpr std::array<std::array<CardCount, Card::NUM_RESOURCE_TYPE>, NUM_BUILDABLES> buildCosts = {{
+    //Sheep, Wood, Wheat, Brick, Ore
+    {0, 1, 0, 1, 0},
+    {1, 1, 1, 1, 0},
+    {0, 0, 2, 0, 3},
+    {1, 0, 1, 0, 1},
+}};
+
+} // end Economy namespace
 
 class Bank {
     private:
-        std::array<int, Card::NUM_RESOURCE_TYPE> resources;
 
-        std::vector<Card::Development> developmentDeck;
-        
+        std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE> resourceCounts;
+
+        std::deque<Card::Development> developmentDeck;
+        std::deque<Card::Development> discardDeck;
 
         void _resetResources();
         void _resetDevelopmentDeck();
 
         void _printResources() const;
         void _printDevelopmentDeck() const;
-    public:
+
+        public:
         void printBank() const;
 
         void reset();
 
-
-        bool deal_cards(std::vector<int> counts, Card::Resource type);
-        bool trade(int count, Card::Resource inType, Card::Resource outType);
-        Card::Development draw_developmentCard();
-
         Bank();
+
+        const std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE>& getResourceCounts() const;
+
+        bool dealCards(const std::vector<Economy::CardCount> &playerPayout, const Card::Resource type);
+        void buyBuildable(const Economy::Buildable type);
+        void trade(const Economy::CardCount inCount, const Economy::CardCount outCount, const Card::Resource inType, const Card::Resource outType);
+        
+        bool developmentCardAvailable();
+        Card::Development drawDevelopmentCard();
+        void discardDevelopmentCard();
 };
 } // end Catan namespace
