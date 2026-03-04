@@ -1,9 +1,12 @@
 #pragma once
 
-#include "board.hpp"
 #include "bank.hpp"
 
+#include <cstdint>
+
 namespace Catan {
+
+using PlayerID = uint8_t;
 
 class Player {
     private:

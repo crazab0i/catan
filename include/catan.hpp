@@ -3,3 +3,4 @@
 #include "board.hpp"
 #include "game.hpp"
 #include "player.hpp"
+#include "bank.hpp"

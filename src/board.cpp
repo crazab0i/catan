@@ -1,9 +1,14 @@
 #include "board.hpp"
+#include "bank.hpp"
+#include "player.hpp"
+#include "game.hpp"
 
 #include <iostream>
 #include <algorithm>
 #include <random>
 #include <set>
+#include <stdexcept>
+#include <unordered_map>
 #include <utility>
 
 namespace Catan {
@@ -18,9 +23,9 @@ namespace Board {
 /////////////////////////////////////////////////////////////////////////
 
 void Building::printBuilding() {
-    std::cout << "owner_id: " << owner_id << "\n";
+    std::cout << "owner_id: " << ownerID << "\n";
     std::cout << "building_type: ";
-    switch (building_type) {
+    switch (buildingType) {
         case BuildingType::Road:        std::cout << "road"; break;
         case BuildingType::Settlement:  std::cout << "settlement"; break;
         case BuildingType::City:        std::cout << "city"; break;
@@ -56,6 +61,12 @@ void Tile::printTile() const {
 //      Board Class
 //
 /////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //      Private
+    //
+    /////////////////////////////////////////////////////////////////////////
 
 void GameBoard::_printTiles() const {
     for (const auto &tile : tiles) {
@@ -103,8 +114,36 @@ void GameBoard::_printEdges() const {
         }
         std::cout << "\n";
     }
-
 }
+
+void GameBoard::_printTileDieIndex() const {
+    for (size_t i = 0; i < tilesDieIndex.size(); ++i) {
+        std::cout << "die value: " << (i + 2) << "\n";
+        for (const int tileID : tilesDieIndex[i]) {
+            std::cout << tileID << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
+Card::Resource GameBoard::_mapTileToCard(Board::TileType type) const {
+    
+    switch (type) {
+        case Board::TileType::Sheep:    return Card::Resource::Sheep;
+        case Board::TileType::Wood:     return Card::Resource::Wood;
+        case Board::TileType::Wheat:    return Card::Resource::Wheat;
+        case Board::TileType::Brick:    return Card::Resource::Brick;
+        case Board::TileType::Ore:      return Card::Resource::Ore;
+
+        default: throw std::runtime_error("recieved a type incompitable with card");
+    }
+}
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //      Public
+    //
+    /////////////////////////////////////////////////////////////////////////
 
 void GameBoard::createBoard() {
     std::vector<Board::TileType> types;
@@ -133,6 +172,7 @@ void GameBoard::createBoard() {
         
         if (types[i] == Board::TileType::Desert) {
             tiles.emplace_back(true, i, -1, types[i]);
+            currentRobberTile = static_cast<Board::TileID>(i);
         } else {
             tiles.emplace_back(false, i, *dice_it, types[i]);
             tilesDieIndex[*dice_it - 2].push_back(static_cast<int>(tiles.size()) - 1);
@@ -211,6 +251,14 @@ void GameBoard::createBoard() {
         }
     }
 
+    for (Board::PointID id = 0; id < Board::NUM_POINTS; ++id) {
+        validPoints.insert(id);
+    }
+
+    for (Board::EdgeID id = 0; id < Board::NUM_EDGES; ++id) {
+        validEdges.insert(id);
+    }
+
 }
 
 void GameBoard::printBoard() const {
@@ -221,10 +269,98 @@ void GameBoard::printBoard() const {
     _printPoints();
     std::cout << "============================== Printing Edges ==============================\n";
     _printEdges();
+    std::cout << "============================== Printing TileDieIndex ==============================\n";
+    _printTileDieIndex();
 }
 
 GameBoard::GameBoard() {
     createBoard();
 }
+
+void GameBoard::placeBuilding(Board::Building &&building, const BuildDestination &destination) {
+    
+    std::visit([&](auto &&arg) {
+        using T = std::decay_t<decltype(arg)>;
+
+        if constexpr (std::is_same_v<T, Board::PointID>) {
+
+            if (building.buildingType != Board::BuildingType::Settlement && building.buildingType != Board::BuildingType::City)
+                throw std::runtime_error("tried to build a non-point builing on a point");
+            if (building.buildingType == Board::BuildingType::Settlement && points[arg].building.buildingType != Board::BuildingType::Unbuilt)
+                throw std::runtime_error("tried to build settlement on a non-empty point");
+            if (building.buildingType == Board::BuildingType::City && points[arg].building.buildingType != Board::BuildingType::City)
+                throw std::runtime_error("tried to build city on a point without a settlement");
+
+            points[arg].building = std::move(building);
+
+            auto it = validPoints.find(arg);
+            if (it != validPoints.end()) validPoints.erase(it);
+
+        } else {
+
+            if (building.buildingType != Board::BuildingType::Road)
+                throw std::runtime_error("tried to build a non-road on edge");
+            if (edges[arg].building.buildingType != Board::BuildingType::Unbuilt) {
+                throw std::runtime_error("tried to build a road on an occupied edge");
+            }
+
+            edges[arg].building = std::move(building);
+
+            auto it = validEdges.find(arg);
+            if (it != validEdges.end()) validEdges.erase(it);
+        }
+    }, destination);
+}
+
+std::vector<Board::TileID> GameBoard::getValidRobberDestinations() const {
+    
+    std::vector<Board::TileID> valid(Board::NUM_TILES);
+    std::iota(begin(valid), end(valid), Board::TileID{0});
+    valid.erase(std::remove(begin(valid), end(valid), currentRobberTile), end(valid));
+    
+    return valid;
+}
+
+std::unordered_set<PlayerID> GameBoard::placeRobber(const Board::TileID destination) {
+    
+    tiles[currentRobberTile].hasRobber = false;
+    tiles[destination].hasRobber = true;
+
+    std::unordered_set<PlayerID> robbedPlayers;
+
+    for (const auto point : Board::tilePoints[destination]) {
+        if (points[point].building.ownerID == Board::NO_OWNER) continue;
+        robbedPlayers.insert(points[point].building.ownerID);
+    }
+
+    return robbedPlayers;
+}
+
+std::unordered_map<Card::Resource, std::vector<int>> GameBoard::getRollPayout(const int dieVal) const {
+
+    std::unordered_map<Card::Resource, std::vector<int>> payout;
+
+    for (const auto tileID : tilesDieIndex[dieVal]) {
+
+        if (tiles[tileID].hasRobber) continue;
+
+        const auto resource = _mapTileToCard(tiles[tileID].type);
+        auto &cardCounts = payout[resource];
+
+        cardCounts.resize(PLAYER_COUNT, Board::INITIAL_CARD_COUNT);
+
+        for (const auto pointID : Board::tilePoints[tileID]) {
+            if (points[pointID].building.ownerID == Board::NO_OWNER) continue;
+            
+            if (points[pointID].building.buildingType == Board::BuildingType::Settlement) {
+                cardCounts[points[pointID].building.ownerID] += Board::CITY_RESOURCE_PAYOUT;
+            } else {
+                cardCounts[points[pointID].building.ownerID] += Board::SETTLEMENT_RESOURCE_PAYOUT;
+            }
+        }
+    }
+    return payout;
+}
+
 
 } // end Catan namespace
