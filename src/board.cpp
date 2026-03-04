@@ -3,6 +3,7 @@
 #include "player.hpp"
 #include "game.hpp"
 
+#include <cstddef>
 #include <iostream>
 #include <algorithm>
 #include <random>
@@ -139,6 +140,39 @@ Card::Resource GameBoard::_mapTileToCard(Board::TileType type) const {
     }
 }
 
+void GameBoard::_createPortPoints() {
+    constexpr int NUM_GENERAL_PORTS = 8;
+    constexpr int NUM_SPECIAL_PORTS = 2;
+    constexpr size_t NUM_SPECIAL_PORT_TYPES = static_cast<size_t>(Board::PortType::_Count);
+
+    std::array<Board::PointID, NUM_GENERAL_PORTS> generalPointIDs = {0, 1, 26, 37, 47, 48, 50, 51};
+    std::array<std::array<Board::PointID, NUM_SPECIAL_PORTS>, NUM_SPECIAL_PORT_TYPES> specialPointIDs = {{
+        {45, 46},
+        {7, 17},
+        {3, 4},
+        {28, 38},
+        {14, 15},
+    }};
+
+    std::array<Board::PortType, NUM_SPECIAL_PORT_TYPES> specialPorts = {
+        Board::PortType::Sheep, 
+        Board::PortType::Wood, 
+        Board::PortType::Wheat, 
+        Board::PortType::Brick, 
+        Board::PortType::Ore
+    };
+
+    for (const auto pointID : generalPointIDs) {
+        pointPorts[pointID] = Board::PortType::General;
+    }
+
+    for (size_t i = 0; i < NUM_SPECIAL_PORT_TYPES; ++i) {
+        for (const auto pointID : specialPointIDs[i]) {
+            pointPorts[pointID] = specialPorts[i];
+        }
+    }
+}
+
     //////////////////////////////////////////////////////////////////////////
     //
     //      Public
@@ -233,6 +267,8 @@ void GameBoard::createBoard() {
             }
             id++;
         }
+
+        _createPortPoints();
     }
 
     for (const auto &point : points) {
@@ -259,6 +295,7 @@ void GameBoard::createBoard() {
         validEdges.insert(id);
     }
 
+    _createPortPoints();
 }
 
 void GameBoard::printBoard() const {

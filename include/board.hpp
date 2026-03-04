@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <variant>
 #include <vector>
+#include <optional>
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -111,6 +112,16 @@ constexpr const char* TileType_to_string(TileType type) {
     }
 }
 
+enum class PortType {
+    General,
+    Sheep,
+    Wood,
+    Wheat,
+    Brick,
+    Ore,
+    _Count,
+};
+
 enum class BuildingType {
     Road,
     Settlement,
@@ -184,12 +195,16 @@ class GameBoard {
         std::vector<Board::Edge> edges;
         std::unordered_set<Board::EdgeID> validEdges;
 
+        std::array<std::optional<Board::PortType>, Board::NUM_POINTS> pointPorts;
+
         void _printTiles() const;
         void _printPoints() const;
         void _printEdges() const;
         void _printTileDieIndex() const;
 
         Card::Resource _mapTileToCard(Board::TileType type) const;
+
+        void _createPortPoints();
 
     public:
         void createBoard();
