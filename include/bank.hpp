@@ -2,6 +2,7 @@
 
 #include <array>
 #include <deque>
+#include <stdexcept>
 #include <vector>
 
 //////////////////////////////////////////////////////////////////////////
@@ -34,6 +35,17 @@ enum class Resource {
 constexpr int         NUM_RESOURCE = 19;
 constexpr size_t NUM_RESOURCE_TYPE = static_cast<size_t>(Resource::_Count);
 
+constexpr const char* resourceTypeToString(Resource type) {
+    switch (type) {
+        case Resource::Sheep:   return "Sheep";
+        case Resource::Wood:    return "Wood";
+        case Resource::Wheat:   return "Wheat";
+        case Resource::Brick:   return "Brick";
+        case Resource::Ore:     return "Ore";
+        default:    throw std::runtime_error("tried to convert invalid resource to string");
+    }
+}
+
 enum class Development {
     Knight,
     VictoryPoint,
@@ -60,14 +72,14 @@ inline constexpr std::array<std::pair<Development, int>, NUM_DEV_TYPE> developme
 
 }};
 
-constexpr const char* DevType_to_string(Development type) {
+constexpr const char* devTypeToString(Development type) {
     switch (type) {
         case Development::Knight:       return "Knight";
         case Development::VictoryPoint: return "Victory Point";
         case Development::RoadBuilding: return "Road Building";
         case Development::YearOfPlenty: return "Year of Plenty";
         case Development::Monopoly:     return "Monopoly";
-        default:                        return "";
+        default:    throw std::runtime_error("tried to convert invalid dev type to string");
     }
 }
 } // end Card namespace

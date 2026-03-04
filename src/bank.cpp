@@ -50,7 +50,7 @@ void Bank::_printResources() const {
 
 void Bank::_printDevelopmentDeck() const {
     for (int i = Card::NUM_DEV_CARDS - 1; i >= 0; --i) {
-        std::cout << Card::DevType_to_string(developmentDeck[i]) << "\n";
+        std::cout << Card::devTypeToString(developmentDeck[i]) << "\n";
     }
 }
 
