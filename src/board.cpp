@@ -1,11 +1,9 @@
 #include "board.hpp"
-#include "bank.hpp"
-#include "player.hpp"
-#include "game.hpp"
+#include "catanConsts.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
-#include <algorithm>
 #include <optional>
 #include <random>
 #include <set>
@@ -353,9 +351,17 @@ std::optional<Board::PortType> GameBoard::placeBuilding(Board::Building &&buildi
 
             auto it = validPoints.find(arg);
             if (it != validPoints.end()) validPoints.erase(it);
-            // erase adjacent points
-            // return port if
-            if (pointPorts[arg]) return pointPorts[arg];
+
+            for (const auto edge : points[arg].edges) {
+
+                if (edge == Board::NON_EDGE) break;
+
+                Board::PointID other = (arg == edges[edge].a) ? edges[edge].b : edges[edge].a;
+                auto it = validPoints.find(other);
+                if (it != validPoints.end()) validPoints.erase(it);
+            }
+
+            if (pointPorts[arg] && building.buildingType == Board::BuildingType::Settlement) return pointPorts[arg];
         } else {
 
             if (building.buildingType != Board::BuildingType::Road)
@@ -382,12 +388,12 @@ const std::vector<Board::TileID> GameBoard::getValidRobberDestinations() const {
     return valid;
 }
 
-std::unordered_set<PlayerID> GameBoard::placeRobber(const Board::TileID destination) {
+std::unordered_set<GameDefs::PlayerID> GameBoard::placeRobber(const Board::TileID destination) {
     
     tiles[currentRobberTile].hasRobber = false;
     tiles[destination].hasRobber = true;
 
-    std::unordered_set<PlayerID> robbedPlayers;
+    std::unordered_set<GameDefs::PlayerID> robbedPlayers;
 
     for (const auto point : Board::tilePoints[destination]) {
         if (points[point].building.ownerID == Board::NO_OWNER) continue;
@@ -397,29 +403,27 @@ std::unordered_set<PlayerID> GameBoard::placeRobber(const Board::TileID destinat
     return robbedPlayers;
 }
 
-std::unordered_map<Card::Resource, std::vector<int>> GameBoard::getRollPayout(const int dieVal) const {
+std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> GameBoard::getRollPayout(const GameDefs::DieVal dieVal) const {
 
-    std::unordered_map<Card::Resource, std::vector<int>> payout;
+    std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> payout;
 
     for (const auto tileID : tilesDieIndex[dieVal]) {
-
-        if (tiles[tileID].hasRobber) continue;
-
+        
         const auto resource = _mapTileToCard(tiles[tileID].type);
-        auto &cardCounts = payout[resource];
-
-        cardCounts.resize(PLAYER_COUNT, Board::INITIAL_CARD_COUNT);
+        auto &playerPayout = payout[static_cast<int>(resource)];
 
         for (const auto pointID : Board::tilePoints[tileID]) {
-            if (points[pointID].building.ownerID == Board::NO_OWNER) continue;
-            
-            if (points[pointID].building.buildingType == Board::BuildingType::Settlement) {
-                cardCounts[points[pointID].building.ownerID] += Board::CITY_RESOURCE_PAYOUT;
+            const auto building = points[pointID].building;
+            if (building.ownerID == Board::NO_OWNER) continue;
+
+            if (building.buildingType == Board::BuildingType::Settlement) {
+                playerPayout[building.ownerID] += Board::SETTLEMENT_RESOURCE_PAYOUT;
             } else {
-                cardCounts[points[pointID].building.ownerID] += Board::SETTLEMENT_RESOURCE_PAYOUT;
+                playerPayout[building.ownerID] += Board::CITY_RESOURCE_PAYOUT;
             }
         }
     }
+
     return payout;
 }
 

@@ -1,4 +1,5 @@
 #include "bank.hpp"
+#include "catanConsts.hpp"
 
 #include <cstddef>
 #include <numeric>
@@ -77,11 +78,11 @@ Bank::Bank() {
     reset();
 }
 
-const std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE>& Bank::getResourceCounts() const {
+const Economy::ResourceArray& Bank::getResourceCounts() const {
     return resourceCounts;
 }
 
-bool Bank::dealCards(const std::vector<Economy::CardCount> &playerPayout, const Card::Resource type) {
+bool Bank::dealCards(const Economy::PlayerPayout &playerPayout, const Card::Resource type) {
     auto total = std::accumulate(begin(playerPayout), end(playerPayout), 0);
     if (total > resourceCounts[static_cast<size_t>(type)]) return false;
 

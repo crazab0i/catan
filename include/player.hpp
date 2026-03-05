@@ -1,19 +1,17 @@
 #pragma once
 
-#include "bank.hpp"
+#include "catanConsts.hpp"
 
-#include <cstdint>
+#include <array>
 
 namespace Catan {
 
-using PlayerID = uint8_t;
-
 class Player {
     private:
-    PlayerID id;
-
+    GameDefs::PlayerID id;
+    
     // sheep, wood, wheat, brick, ore. Each player starts with enough to build 2 settlements and 2 roads
-    std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE> resourceInventory = {2, 4, 2, 4, 0};
+    Economy::ResourceArray resourceInventory = {2, 4, 2, 4, 0};
 
     std::array<Economy::CardCount, Card::NUM_DEV_TYPE> developmentCardInventory = {0, 0, 0, 0, 0};
 
@@ -32,7 +30,7 @@ class Player {
 
     void printPlayer() const;
 
-    Player(PlayerID id);
+    Player(GameDefs::PlayerID id);
 
     bool canBuyBuildable(const Economy::Buildable type) const;
 
