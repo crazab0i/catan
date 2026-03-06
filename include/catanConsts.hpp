@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 namespace Catan {
 
@@ -17,14 +18,16 @@ namespace Catan {
 namespace GameDefs {
 
 constexpr int NUM_MAX_PLAYERS = 4;
+
 using PlayerID = uint8_t;
 using DieVal = uint8_t;
+
+constexpr DieVal ROBBER_ROLL = 7;
 
 enum class Stage {
     Start,
     Setup,
     Main,
-    FinalRound,
 };
 
 enum class Turn {
@@ -32,12 +35,64 @@ enum class Turn {
     Player1,
     Player2,
     Player3,
+    End,
 };
 
 enum class TurnStage {
     Roll,
+    MoveRobber,
+    RoadBuilding,
     Build,
+    None,
 };
+
+enum class SetupStage {
+    RollForFirstPlayer,
+    FirstSettlementPlacement,
+    SecondSettlementPlacement,
+    Complete,
+};
+
+struct SetupState {
+    SetupStage stage;
+
+    DieVal highestRoll = 0;
+    PlayerID highestRollPlayer = 0;
+
+    int placementRoundNum = 1;
+    PlayerID firstPlayer;
+    PlayerID lastPlayer;
+};
+
+constexpr const char *stageToString(Stage stage) {
+    switch (stage) {
+        case Stage::Start:  return "Start";
+        case Stage::Setup:  return "Setup";
+        case Stage::Main:   return "Main";
+        default:    throw std::runtime_error("unreachable");
+    }
+}
+
+constexpr const char *turnStageToString(TurnStage stage) {
+    switch (stage) {
+        case TurnStage::Roll:           return "Roll";
+        case TurnStage::MoveRobber:     return "MoveRobber";
+        case TurnStage::RoadBuilding:   return "RoadBuilding";
+        case TurnStage::Build:          return "Build";
+        case TurnStage::None:           return "None";
+        default:    throw std::runtime_error("unreachable");
+    }
+}
+
+constexpr const char *setupStateToString(SetupStage stage) {
+    switch (stage) {
+        case SetupStage::Complete:                  return "Complete";
+        case SetupStage::FirstSettlementPlacement:  return "FirstSettlementPlacement";
+        case SetupStage::SecondSettlementPlacement: return "SecondSettlementPlacement";
+        case SetupStage::RollForFirstPlayer:        return "RollForFirstPlayer";
+        default:    throw std::runtime_error("unreachable");
+    }
+}
 
 } // end GameDefs namespace
 
@@ -305,5 +360,45 @@ struct Tile {
 };
 
 } // end Board namespace
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+//      API Namespace
+//
+/////////////////////////////////////////////////////////////////////////
+
+namespace API {
+
+/**
+ * Represents the result of a dice roll.
+ * Contains the total and individual die values.
+ */
+struct FirstRollResult {
+    std::pair<GameDefs::DieVal, GameDefs::DieVal> diceRoll;
+    
+    GameDefs::DieVal dieTotal;
+    GameDefs::PlayerID playerRolled;
+
+    GameDefs::DieVal highestRolled;
+    GameDefs::PlayerID highestPlayerRolled;
+};
+
+struct RollResult {
+    std::pair<GameDefs::DieVal, GameDefs::DieVal> diceRoll;
+    GameDefs::DieVal dieTotal;
+
+    std::array<std::optional<Economy::PlayerPayout>, Card::NUM_RESOURCE_TYPE> payouts;
+
+    GameDefs::PlayerID player;
+};
+
+struct DevResult {
+    Card::Development card;
+    // special cases robber, monopoly, road building, invention
+};
+
+
+} // end API Namespace
 
 } // end Catan namespace

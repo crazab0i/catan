@@ -1,5 +1,4 @@
 #include "player.hpp"
-#include "bank.hpp"
 
 #include <array>
 #include <iostream>
@@ -71,7 +70,7 @@ void Player::printPlayer() const {
     _printDevelopmentCardInventory();
 }
 
-Player::Player(PlayerID id) : id(id) {};
+Player::Player(GameDefs::PlayerID id) : id(id) {};
 
 bool Player::canBuyBuildable(const Economy::Buildable type) const {
     

@@ -9,6 +9,9 @@ namespace Catan {
 class Player {
     private:
     GameDefs::PlayerID id;
+    int victoryPoints = 0;
+
+    int knightCount = 0;
     
     // sheep, wood, wheat, brick, ore. Each player starts with enough to build 2 settlements and 2 roads
     Economy::ResourceArray resourceInventory = {2, 4, 2, 4, 0};

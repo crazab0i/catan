@@ -11,9 +11,15 @@ namespace Catan {
 
 class Game {
     private:
+
+    GameDefs::SetupState setupState;
+
+    GameDefs::PlayerID holderOfLongestRoad = Board::NO_OWNER;
+    GameDefs::PlayerID holderOfLargestArmy = Board::NO_OWNER;
+
     std::mt19937 rng;
 
-    bool started = false;
+    bool inFinalRound = false;
 
     std::vector<Player> players;
     int numPlayers;
@@ -23,35 +29,51 @@ class Game {
 
     GameDefs::Stage currentStage = GameDefs::Stage::Setup;
     GameDefs::Turn currentTurn;
-    GameDefs::TurnStage currentTurnStage = GameDefs::TurnStage::Roll;
+    GameDefs::TurnStage currentTurnStage = GameDefs::TurnStage::None;
 
     bool devPlayed = false;
 
     std::pair<GameDefs::DieVal, GameDefs::DieVal> _rollDie();
 
     const GameDefs::PlayerID _turnToPlayerID(GameDefs::Turn turn) const;
+
+    void _checkTurn(const GameDefs::TurnStage expectedTurnStage) const;
+    void _checkSetup(const GameDefs::SetupStage expectedSetupStage) const;
+
+
+    void _checkStage(const GameDefs::Stage expectedStage) const;
+    void _checkTurnStage(const GameDefs::TurnStage expectedTurnStage) const;
+    void _checkSetupStage(const GameDefs::SetupStage expectedSetupStage) const;
+
     public:
 
     // need interface to have inputs and display
 
 
-
     Game(int numPlayers);
+
+    // start stage
 
     void startGame();
 
     // outside interface to control game
 
-    const GameDefs::PlayerID getCurrentPlayer() const;
+    // setup stage
 
-    void makeTrade(const Economy::CardCount inCount, const Card::Resource inType, const Economy::CardCount outCount, const Card::Resource outType, const Economy::TradeTarget target);
+    const API::FirstRollResult rollForFirstPlayer();
 
-    void playDev(Card::Development card);
-    void playBuilding(Board::BuildingType building);
+    // main stage
 
-    std::pair<GameDefs::DieVal, GameDefs::DieVal> rollDie();
+    const API::RollResult rollDie();
 
     void endTurn();
+
+    // general
+
+    const GameDefs::PlayerID getFirstPlayer() const;
+    const GameDefs::PlayerID getCurrentPlayer() const;
+
+
 };
 
 
