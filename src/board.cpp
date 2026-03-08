@@ -3,11 +3,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <format>
 #include <iostream>
 #include <optional>
 #include <random>
 #include <set>
 #include <stdexcept>
+#include <sys/types.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -36,16 +39,16 @@ void Building::printBuilding() {
 }   
 
 
-Point::Point(int id) : id(PointID(id)) {}
-Edge::Edge(int id, PointID a, PointID b) : id(static_cast<EdgeID>(id)), a(a), b(b) {}
+Point::Point(uint8_t id) : id(id), building({BuildLocationTypes::Point, id}) {}
+Edge::Edge(uint8_t id, PointID a, PointID b) : id(static_cast<EdgeID>(id)), a(a), b(b), building({BuildLocationTypes::Edge, id}) {}
 Tile::Tile(bool hasRobber, 
-           int id, 
-           int diceValue,
+           uint8_t id, 
+           GameDefs::DieVal diceValue,
            TileType type) : hasRobber(hasRobber), id(id), diceValue(diceValue), type(type) {}
 
 void Tile::printTile() const {
     std::cout << "========== tile id: " << static_cast<int>(id) << " ==========\n";
-    std::cout << "type: " << TileType_to_string(type);
+    std::cout << "type: " << tileTypeToString(type);
     std::cout << "\ndice value: " << diceValue;
     std::cout << "\nhas robber: " << hasRobber;
     std::cout << "\npoints: ";
@@ -232,18 +235,25 @@ void GameBoard::_createPointsAndEdges() {
         }
     }
 
+    // THIS IS BROKEN FIX
+
     for (const auto &point : points) {
         for (size_t i = 0; i < Board::MAX_ADJACENT_EDGES_TO_POINT && point.edges[i] != Board::NON_EDGE; ++i) {
-            for (size_t j = 0; j < Board::MAX_ADJACENT_EDGES_TO_POINT && point.edges[j] != Board::NON_EDGE; ++j) {
-                if (point.edges[i] == point.edges[j]) continue;
+            for (size_t j = i + 1; j < Board::MAX_ADJACENT_EDGES_TO_POINT && point.edges[j] != Board::NON_EDGE; ++j) {
+
+                auto edge1 = point.edges[i];
+                auto edge2 = point.edges[j];
+
+                auto &adjacent = edges[edge1].edges;
+
                 size_t pos = 0;
-                while (pos < Board::MAX_ADJACENT_EDGES_TO_EDGE && edges[point.edges[i]].edges[pos] != Board::NON_EDGE) {
+                while (pos < Board::MAX_ADJACENT_EDGES_TO_EDGE && adjacent[pos] != Board::NON_EDGE) {
                     ++pos;
                 }
                 if (pos >= Board::MAX_ADJACENT_EDGES_TO_EDGE) 
                     throw std::runtime_error("tried to insert edge in a pos higher than maximum number of adjacent edges to an edge.");
 
-                edges[point.edges[i]].edges[pos] = point.edges[j];
+                adjacent[pos] = edge2;
             }
         }
     }
@@ -260,6 +270,7 @@ void GameBoard::_createValidPointsAndEdges() {
 }
 
 void GameBoard::_createPortPoints() {
+
     constexpr int NUM_GENERAL_PORTS = 8;
     constexpr int NUM_SPECIAL_PORTS = 2;
     constexpr size_t NUM_SPECIAL_PORT_TYPES = static_cast<size_t>(Board::PortType::_Count);
@@ -289,6 +300,46 @@ void GameBoard::_createPortPoints() {
         for (const auto pointID : specialPointIDs[i]) {
             pointPorts[pointID] = specialPorts[i];
         }
+    }
+}
+
+const std::unordered_set<Board::PointID> GameBoard::_getAdjacentPoints(const Board::PointID pointID) const {
+
+    std::unordered_set<Board::PointID> result;
+    const auto point = points[pointID];
+    
+    for (const auto edgeID : point.edges) {
+        const auto edge = edges[edgeID];
+        const auto otherPoint = (edge.a == pointID) ? edge.b : edge.a;
+        result.insert(otherPoint);
+    }
+    return result;
+}
+
+void GameBoard::_invalidatePointAndAdjacentPoints(const Board::PointID pointID) {
+    
+    auto it = validPoints.find(pointID);
+    if (it != validPoints.end()) validPoints.erase(it);
+
+    const auto adjacentPoints = _getAdjacentPoints(pointID);
+
+    for (const auto point : adjacentPoints) {
+        it = validPoints.find(point);
+        if (it != validPoints.end()) validPoints.erase(it);
+    }
+}
+
+void GameBoard::_checkBuildingLocationIsValid(const Board::Building &building) const {
+
+    if (building.buildingType == Board::BuildingType::Road) {
+        const auto it = validEdges.find(building.position.value);
+        if (it == validEdges.end()) throw std::runtime_error(std::format("expected road to be on valid edge, instead recieved invalid edgeID: {}", static_cast<int>(building.position.value)));
+    } else if (building.buildingType == Board::BuildingType::Settlement) {
+        const auto it = validPoints.find(building.position.value);
+        if (it == validPoints.end()) throw std::runtime_error(std::format("expected settlement to be on valid point, instead recieved invalid pointID: {}", static_cast<int>(building.position.value)));
+    } else if (building.buildingType == Board::BuildingType::City) {
+        const auto settlement = points[building.position.value].building;
+        if (settlement.buildingType != Board::BuildingType::Settlement) throw std::runtime_error(std::format("expected city to be built on settlement, instead recieved pointID: {}, with building type: {}", static_cast<int>(building.position.value), Board::buildingTypeToString(building.buildingType)));
     }
 }
 
@@ -333,50 +384,27 @@ const std::unordered_set<Board::EdgeID>& GameBoard::getValidEdges() const {
     return validEdges;
 }
 
-std::optional<Board::PortType> GameBoard::placeBuilding(Board::Building &&building, const BuildDestination &destination) {
-    
-    return std::visit([&](auto &&arg) -> std::optional<Board::PortType> {
-        using T = std::decay_t<decltype(arg)>;
+std::optional<Board::PortType> GameBoard::placeBuilding(const Board::Building &building) {
 
-        if constexpr (std::is_same_v<T, Board::PointID>) {
+    _checkBuildingLocationIsValid(building);
 
-            if (building.buildingType != Board::BuildingType::Settlement && building.buildingType != Board::BuildingType::City)
-                throw std::runtime_error("tried to build a non-point builing on a point");
-            if (building.buildingType == Board::BuildingType::Settlement && points[arg].building.buildingType != Board::BuildingType::Unbuilt)
-                throw std::runtime_error("tried to build settlement on a non-empty point");
-            if (building.buildingType == Board::BuildingType::City && points[arg].building.buildingType != Board::BuildingType::City)
-                throw std::runtime_error("tried to build city on a point without a settlement");
+    if (building.buildingType == Board::BuildingType::Settlement) {
+        points[building.position.value].building = building;
 
-            points[arg].building = std::move(building);
+        _invalidatePointAndAdjacentPoints(building.position.value);
 
-            auto it = validPoints.find(arg);
-            if (it != validPoints.end()) validPoints.erase(it);
+        if (pointPorts[building.position.value]) return pointPorts[building.position.value];
 
-            for (const auto edge : points[arg].edges) {
+    } else if (building.buildingType == Board::BuildingType::City) {
+        points[building.position.value].building = building;
 
-                if (edge == Board::NON_EDGE) break;
+    } else if (building.buildingType == Board::BuildingType::Road) {
+        edges[building.position.value].building = building;
+        
+        validEdges.erase(validEdges.find(building.position.value));
+    }
 
-                Board::PointID other = (arg == edges[edge].a) ? edges[edge].b : edges[edge].a;
-                auto it = validPoints.find(other);
-                if (it != validPoints.end()) validPoints.erase(it);
-            }
-
-            if (pointPorts[arg] && building.buildingType == Board::BuildingType::Settlement) return pointPorts[arg];
-        } else {
-
-            if (building.buildingType != Board::BuildingType::Road)
-                throw std::runtime_error("tried to build a non-road on edge");
-            if (edges[arg].building.buildingType != Board::BuildingType::Unbuilt) {
-                throw std::runtime_error("tried to build a road on an occupied edge");
-            }
-
-            edges[arg].building = std::move(building);
-
-            auto it = validEdges.find(arg);
-            if (it != validEdges.end()) validEdges.erase(it);
-        }
-        return std::nullopt;
-    }, destination);
+    return std::nullopt;
 }
 
 const std::vector<Board::TileID> GameBoard::getValidRobberDestinations() const {
@@ -403,7 +431,7 @@ std::unordered_set<GameDefs::PlayerID> GameBoard::placeRobber(const Board::TileI
     return robbedPlayers;
 }
 
-std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> GameBoard::getRollPayout(const GameDefs::DieVal dieVal) const {
+const std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> GameBoard::getRollPayout(const GameDefs::DieVal dieVal) const {
 
     std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> payout;
 
@@ -427,5 +455,31 @@ std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> GameBoard::getRollPay
     return payout;
 }
 
+const Economy::ResourceArray GameBoard::getInitialSettlementPayout(const Board::PointID secondPlacement) const {
+    
+    Economy::ResourceArray payout;
+
+    constexpr int NUM_MAX_TILES_PER_POINT = 3;
+    int found = 0;
+
+    for (size_t i = 0; i < Board::NUM_TILES; ++i) {
+        for (const auto pointID : Board::tilePoints[i]) {
+            if (pointID == secondPlacement) {
+                ++payout[static_cast<int>(tiles[i].type)];
+                ++found;
+                break;
+            }
+        }
+        if (found == NUM_MAX_TILES_PER_POINT) {
+            break;
+        }
+    }
+
+    return payout;
+}
+
+Board::TileID GameBoard::getCurrentRobberPosition() const {
+    return currentRobberTile;
+}
 
 } // end Catan namespace

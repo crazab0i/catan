@@ -1,11 +1,11 @@
 #include "bank.hpp"
 #include "catanConsts.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <numeric>
 #include <random>
-#include <iostream>
-#include <algorithm>
 #include <stdexcept>
 
 namespace Catan {

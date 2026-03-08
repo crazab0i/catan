@@ -4,10 +4,10 @@
 #include "catanConsts.hpp"
 
 #include <array>
+#include <optional>
 #include <unordered_set>
 #include <variant>
 #include <vector>
-#include <optional>
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -56,6 +56,11 @@ class GameBoard {
         void _createValidPointsAndEdges();
         void _createPortPoints();
 
+        const std::unordered_set<Board::PointID> _getAdjacentPoints(const Board::PointID pointID) const;
+        void _invalidatePointAndAdjacentPoints(const Board::PointID pointID);
+
+        void _checkBuildingLocationIsValid(const Board::Building &building) const;
+
     public:
         void createBoard();
         void printBoard() const;
@@ -66,15 +71,17 @@ class GameBoard {
         const std::unordered_set<Board::EdgeID>& getValidEdges() const;
 
         using BuildDestination = std::variant<Board::TileID, Board::EdgeID>;
-        std::optional<Board::PortType> placeBuilding(Board::Building &&building, const BuildDestination &destination);
+        std::optional<Board::PortType> placeBuilding(const Board::Building &building);
 
         const std::vector<Board::TileID> getValidRobberDestinations() const;
         std::unordered_set<GameDefs::PlayerID> placeRobber(Board::TileID destination);
 
         // change this to std opt
-        std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> getRollPayout(const GameDefs::PlayerID dieVal) const;
+        const std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> getRollPayout(const GameDefs::PlayerID dieVal) const;
 
         const Economy::ResourceArray getInitialSettlementPayout(const Board::PointID secondPlacement) const;
+
+        Board::TileID getCurrentRobberPosition() const;
 };
 
 

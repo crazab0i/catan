@@ -29,7 +29,7 @@ std::pair<GameDefs::DieVal, GameDefs::DieVal> Game::_rollDie() {
     return std::make_pair(dieChance(rng), dieChance(rng));
 }
 
-const GameDefs::PlayerID Game::_turnToPlayerID(GameDefs::Turn turn) const {
+GameDefs::PlayerID Game::_turnToPlayerID(GameDefs::Turn turn) const {
     switch (turn) {
         case GameDefs::Turn::Player0: return 0;
         case GameDefs::Turn::Player1: return 1;
@@ -46,7 +46,7 @@ void Game::_checkTurn(const GameDefs::TurnStage expectedTurnStage) const {
 
 void Game::_checkSetup(const GameDefs::SetupStage expectedSetupState) const {
     _checkStage(GameDefs::Stage::Setup);
-    _checkSetup(expectedSetupState);
+    _checkSetupStage(expectedSetupState);
 }
 
 void Game::_checkStage(const GameDefs::Stage expectedStage) const {
@@ -62,6 +62,22 @@ void Game::_checkTurnStage(const GameDefs::TurnStage expectedTurnStage) const {
 void Game::_checkSetupStage(const GameDefs::SetupStage expectedSetupStage) const {
     if (expectedSetupStage != setupState.stage)
         throw std::runtime_error(std::format("expected setupStage to be: {}, found setupStage to be {}", GameDefs::setupStateToString(expectedSetupStage), GameDefs::setupStateToString(setupState.stage)));
+}
+
+void Game::_checkBuilding(const Board::Building &building, const Board::BuildingType expectedType) const {
+    if (building.buildingType != expectedType)
+        throw std::runtime_error(std::format("expected buildingType to be: {}, found buildingType to be {}", Board::buildingTypeToString(expectedType),Board::buildingTypeToString(building.buildingType)));
+}
+
+void Game::_setTurnNextPlayer(const bool forward) {
+    auto player = getCurrentPlayer();
+    if (forward) {
+        auto next = (player + 1) % numPlayers;
+        currentTurn = static_cast<GameDefs::Turn>(next);
+    } else {
+        auto prev = (player + numPlayers - 1) % numPlayers;
+        currentTurn = static_cast<GameDefs::Turn>(prev);
+    }
 }
 
     //////////////////////////////////////////////////////////////////////////
@@ -83,7 +99,7 @@ void Game::startGame() {
     currentStage = GameDefs::Stage::Setup;
 }
 
-Game::Game(int numPlayers) : rng(std::random_device{}()), numPlayers(numPlayers) {
+Game::Game(int numPlayers) : numPlayers(numPlayers), rng(std::random_device{}()) {
     players.reserve(numPlayers);
     
     for (int i = 0; i < numPlayers; ++i) {
@@ -113,10 +129,46 @@ const API::FirstRollResult Game::rollForFirstPlayer() {
     if (static_cast<int>(currentPlayer) == numPlayers - 1) {
         setupState.firstPlayer = setupState.highestRollPlayer;
         setupState.lastPlayer = (setupState.firstPlayer + numPlayers - 1) % numPlayers;
-        setupState.stage = GameDefs::SetupStage::FirstSettlementPlacement;
+        setupState.stage = GameDefs::SetupStage::SettlementPlacement;
+
+        currentTurn = static_cast<GameDefs::Turn>(setupState.firstPlayer);
     }
 
     return { diceRoll, dieTotal, currentPlayer, setupState.highestRoll, setupState.highestRollPlayer };
+}
+
+const API::SetupBuildResult Game::setupBuild(const Board::Building &settlement, const Board::Building &road) {
+    
+    _checkSetup(GameDefs::SetupStage::SettlementPlacement);
+
+    auto port = board.placeBuilding(settlement);
+    board.placeBuilding(road);
+
+    std::optional<Economy::ResourceArray> resources;
+    if (setupState.placementRoundNum == GameDefs::SECOND_ROUND) {
+        resources = board.getInitialSettlementPayout(settlement.position.value);
+    }
+
+    auto player = getCurrentPlayer();
+
+    if (setupState.placementRoundNum == GameDefs::FIRST_ROUND) {
+        if (player == setupState.lastPlayer) {
+            setupState.placementRoundNum = GameDefs::SECOND_ROUND;
+        } else {
+            _setTurnNextPlayer();
+        }
+    } else {
+        // in SECOUND_ROUND
+
+        if (player == setupState.firstPlayer) {
+            setupState.stage = GameDefs::SetupStage::Complete;
+            currentStage = GameDefs::Stage::Main;
+            currentTurnStage = GameDefs::TurnStage::Roll;
+        } else {
+            _setTurnNextPlayer(false);
+        }
+    }
+    return { player, settlement, road, port, resources };
 }
 
         //////////////////////////////////////////////////////////////////////////
@@ -146,10 +198,28 @@ const API::RollResult Game::rollDie() {
     return { dieResult, dieTotal, opt_payouts, getCurrentPlayer() };
 }
 
+GameDefs::PlayerID Game::getFirstPlayer() const {
+    return setupState.firstPlayer;
+}
 
-const GameDefs::PlayerID Game::getCurrentPlayer() const {
+GameDefs::PlayerID Game::getCurrentPlayer() const {
     return _turnToPlayerID(currentTurn);
 }
 
+Board::TileID Game::getRobberPosition() const {
+    return board.getCurrentRobberPosition();
+}
+
+void Game::printBank() const {
+    bank.printBank();
+}
+
+void Game::printBoard() const {
+    board.printBoard();
+}
+
+void Game::printPlayer(const GameDefs::PlayerID playerID) const {
+    players[playerID].printPlayer();
+}
 
 } // end Catan namespace

@@ -12,6 +12,7 @@ add_library(catan STATIC
     src/board.cpp
     src/game.cpp
     src/player.cpp
+    src/catanConsts.cpp
 )
 
 add_library(catan::catan ALIAS catan)

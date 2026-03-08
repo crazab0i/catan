@@ -13,8 +13,7 @@ class Player {
 
     int knightCount = 0;
     
-    // sheep, wood, wheat, brick, ore. Each player starts with enough to build 2 settlements and 2 roads
-    Economy::ResourceArray resourceInventory = {2, 4, 2, 4, 0};
+    Economy::ResourceArray resourceInventory = {0, 0, 0, 0, 0};
 
     std::array<Economy::CardCount, Card::NUM_DEV_TYPE> developmentCardInventory = {0, 0, 0, 0, 0};
 

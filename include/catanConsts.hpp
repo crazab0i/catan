@@ -1,11 +1,12 @@
 #pragma once
 
-#include <cstddef>
-#include <stdexcept>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <stdexcept>
+#include <sys/types.h>
 
 namespace Catan {
 
@@ -48,10 +49,12 @@ enum class TurnStage {
 
 enum class SetupStage {
     RollForFirstPlayer,
-    FirstSettlementPlacement,
-    SecondSettlementPlacement,
+    SettlementPlacement,
     Complete,
 };
+
+constexpr int FIRST_ROUND = 1;
+constexpr int SECOND_ROUND = 2;
 
 struct SetupState {
     SetupStage stage;
@@ -59,38 +62,37 @@ struct SetupState {
     DieVal highestRoll = 0;
     PlayerID highestRollPlayer = 0;
 
-    int placementRoundNum = 1;
+    int placementRoundNum = FIRST_ROUND;
     PlayerID firstPlayer;
     PlayerID lastPlayer;
 };
 
-constexpr const char *stageToString(Stage stage) {
+constexpr const char* stageToString(Stage stage) {
     switch (stage) {
         case Stage::Start:  return "Start";
         case Stage::Setup:  return "Setup";
         case Stage::Main:   return "Main";
-        default:    throw std::runtime_error("unreachable");
+        default:    throw std::runtime_error("tried to convert invalid stage to string");
     }
 }
 
-constexpr const char *turnStageToString(TurnStage stage) {
+constexpr const char* turnStageToString(TurnStage stage) {
     switch (stage) {
         case TurnStage::Roll:           return "Roll";
         case TurnStage::MoveRobber:     return "MoveRobber";
         case TurnStage::RoadBuilding:   return "RoadBuilding";
         case TurnStage::Build:          return "Build";
         case TurnStage::None:           return "None";
-        default:    throw std::runtime_error("unreachable");
+        default:    throw std::runtime_error("tried to convert invalid turnStage to string");
     }
 }
 
-constexpr const char *setupStateToString(SetupStage stage) {
+constexpr const char* setupStateToString(SetupStage stage) {
     switch (stage) {
         case SetupStage::Complete:                  return "Complete";
-        case SetupStage::FirstSettlementPlacement:  return "FirstSettlementPlacement";
-        case SetupStage::SecondSettlementPlacement: return "SecondSettlementPlacement";
+        case SetupStage::SettlementPlacement:       return "SettlementPlacement";
         case SetupStage::RollForFirstPlayer:        return "RollForFirstPlayer";
-        default:    throw std::runtime_error("unreachable");
+        default:    throw std::runtime_error("tried to convert invalid setupState to string");
     }
 }
 
@@ -124,7 +126,7 @@ constexpr const char* resourceTypeToString(Resource type) {
         case Resource::Wheat:   return "Wheat";
         case Resource::Brick:   return "Brick";
         case Resource::Ore:     return "Ore";
-        default:    throw std::runtime_error("tried to convert invalid resource to string");
+        default:    throw std::runtime_error("tried to convert invalid resourceType to string");
     }
 }
 
@@ -161,7 +163,7 @@ constexpr const char* devTypeToString(Development type) {
         case Development::RoadBuilding: return "Road Building";
         case Development::YearOfPlenty: return "Year of Plenty";
         case Development::Monopoly:     return "Monopoly";
-        default:    throw std::runtime_error("tried to convert invalid dev type to string");
+        default:    throw std::runtime_error("tried to convert invalid devType to string");
     }
 }
 } // end Card namespace
@@ -192,6 +194,9 @@ constexpr size_t NUM_BUILDABLES = static_cast<size_t>(Buildable::_Count);
 
 using CardCount = int;
 using ResourceArray = std::array<Economy::CardCount, Card::NUM_RESOURCE_TYPE>;
+
+const std::string resourceArrayToString(const ResourceArray &arr);
+
 using PlayerPayout = std::array<Economy::CardCount, GameDefs::NUM_MAX_PLAYERS>;
 
 // cost of road, settlement, city, devCard
@@ -279,7 +284,7 @@ constexpr size_t NUM_TYPE_TILE = static_cast<size_t>(TileType::_Count);
         {TileType::Desert,  NUM_DESERT_TILE},
     }};
 
-constexpr const char* TileType_to_string(TileType type) {
+constexpr const char* tileTypeToString(TileType type) {
     switch (type) {
         case TileType::Sheep:   return "Sheep";
         case TileType::Wood:    return "Wood";
@@ -287,7 +292,7 @@ constexpr const char* TileType_to_string(TileType type) {
         case TileType::Brick:   return "Brick";
         case TileType::Ore:     return "Ore";
         case TileType::Desert:  return "Desert";
-        default:                return "";
+        default:    throw std::runtime_error("tried to convert invalid tileType to string");
     }
 }
 
@@ -301,6 +306,18 @@ enum class PortType {
     _Count,
 };
 
+constexpr const char* portTypeToString(PortType type) {
+    switch (type) {
+        case PortType::General:     return "General";
+        case PortType::Sheep:       return "Sheep";
+        case PortType::Wood:        return "Wood";
+        case PortType::Wheat:       return "Wheat";
+        case PortType::Brick:       return "Brick";
+        case PortType::Ore:         return "Ore";
+        default:    throw std::runtime_error("tried to convert invalid portType to string");
+    }
+}
+
 enum class BuildingType {
     Road,
     Settlement,
@@ -308,16 +325,43 @@ enum class BuildingType {
     Unbuilt,
 };  
 
+constexpr const char* buildingTypeToString(BuildingType type) {
+    switch (type) {
+        case BuildingType::City:        return "City";
+        case BuildingType::Road:        return "Road";
+        case BuildingType::Settlement:  return "Settlement";
+        case BuildingType::Unbuilt:     return "Unbuilt";
+        default:    throw std::runtime_error("tried to convert invalid buildingType to string");
+    }
+}
+
 constexpr GameDefs::PlayerID NO_OWNER = UINT8_MAX;
 constexpr int INITIAL_CARD_COUNT = 0;
 constexpr int SETTLEMENT_RESOURCE_PAYOUT = 1;
 constexpr int CITY_RESOURCE_PAYOUT = 2;
 
+enum class BuildLocationTypes {
+    Point,
+    Edge,
+};
+
+struct BuildPosition {
+    BuildLocationTypes type;
+    uint8_t value; 
+};
+
 struct Building {
+    private:
+    void _checkPosition() const;
+    public:
     GameDefs::PlayerID ownerID = NO_OWNER;
     BuildingType buildingType = BuildingType::Unbuilt;
+    BuildPosition position;
 
     void printBuilding();
+    Building(const BuildPosition position);
+
+    Building(const GameDefs::PlayerID owner, const BuildingType type, const BuildPosition position);
 };
 
 constexpr int MAX_ADJACENT_TILES = 3;
@@ -332,7 +376,7 @@ struct Point {
     std::array<EdgeID, MAX_ADJACENT_EDGES_TO_POINT>  edges {NON_EDGE, NON_EDGE, NON_EDGE};
     Building building;
 
-    Point(int id);
+    Point(uint8_t id);
 };
 
 constexpr int MAX_ADJACENT_EDGES_TO_EDGE = 4;
@@ -346,16 +390,16 @@ struct Edge {
     std::array<EdgeID, MAX_ADJACENT_EDGES_TO_EDGE> edges {NON_EDGE, NON_EDGE, NON_EDGE, NON_EDGE};
     Building building;
 
-    Edge(int id, PointID a, PointID b);
+    Edge(uint8_t id, PointID a, PointID b);
 };
 
 struct Tile {
     bool hasRobber;
     TileID id;
-    int diceValue;
+    GameDefs::DieVal diceValue;
     TileType type;
 
-    Tile(bool hasRobber, int id, int diceValue, TileType type);
+    Tile(bool hasRobber, uint8_t id, GameDefs::DieVal diceValue, TileType type);
     void printTile() const;
 };
 
@@ -396,6 +440,17 @@ struct RollResult {
 struct DevResult {
     Card::Development card;
     // special cases robber, monopoly, road building, invention
+};
+
+struct SetupBuildResult {
+    GameDefs::PlayerID player;
+    Board::Building settlement;
+    Board::Building road;
+    std::optional<Board::PortType> port;
+    std::optional<Economy::ResourceArray> gained_resources;
+
+    SetupBuildResult(GameDefs::PlayerID player, Board::Building settlement, Board::Building road, std::optional<Board::PortType> port, std::optional<Economy::ResourceArray> resources)
+        : player(player), settlement(settlement), road(road), port(port), gained_resources(resources) {}
 };
 
 
