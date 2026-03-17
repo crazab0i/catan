@@ -95,7 +95,6 @@ void Game::_setTurnNextPlayer(const bool forward) {
 void Game::startGame() {
     _checkStage(GameDefs::Stage::Start);
 
-    board.createBoard();
     currentStage = GameDefs::Stage::Setup;
 }
 
@@ -132,6 +131,8 @@ const API::FirstRollResult Game::rollForFirstPlayer() {
         setupState.stage = GameDefs::SetupStage::SettlementPlacement;
 
         currentTurn = static_cast<GameDefs::Turn>(setupState.firstPlayer);
+    } else {
+        _setTurnNextPlayer();
     }
 
     return { diceRoll, dieTotal, currentPlayer, setupState.highestRoll, setupState.highestRollPlayer };
@@ -141,8 +142,8 @@ const API::SetupBuildResult Game::setupBuild(const Board::Building &settlement, 
     
     _checkSetup(GameDefs::SetupStage::SettlementPlacement);
 
-    auto port = board.placeBuilding(settlement);
-    board.placeBuilding(road);
+    auto port = board.placeBuilding(settlement, Board::BuildPhase::Setup);
+    board.placeBuilding(road, Board::BuildPhase::Setup);
 
     std::optional<Economy::ResourceArray> resources;
     if (setupState.placementRoundNum == GameDefs::SECOND_ROUND) {
@@ -169,6 +170,10 @@ const API::SetupBuildResult Game::setupBuild(const Board::Building &settlement, 
         }
     }
     return { player, settlement, road, port, resources };
+}
+
+const API::ValidSetupBuildLocations Game::getValidSetupBuildLocations() const {
+    return { board.getValidPoints(), board.getValidEdges() };
 }
 
         //////////////////////////////////////////////////////////////////////////

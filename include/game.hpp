@@ -31,7 +31,7 @@ class Game {
 
     GameDefs::Stage currentStage = GameDefs::Stage::Start;
 
-    GameDefs::Turn currentTurn;
+    GameDefs::Turn currentTurn = GameDefs::Turn::Player0;
     GameDefs::TurnStage currentTurnStage = GameDefs::TurnStage::None;
 
     bool devPlayed = false;
@@ -69,6 +69,8 @@ class Game {
 
     const API::FirstRollResult rollForFirstPlayer();
     const API::SetupBuildResult setupBuild(const Board::Building &settlement, const Board::Building &road);
+
+    const API::ValidSetupBuildLocations getValidSetupBuildLocations() const;
 
     // main stage
 

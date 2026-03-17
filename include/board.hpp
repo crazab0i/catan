@@ -5,9 +5,10 @@
 
 #include <array>
 #include <optional>
-#include <unordered_set>
+#include <set>
 #include <variant>
 #include <vector>
+#include <unordered_set>
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -37,10 +38,12 @@ class GameBoard {
         std::vector<std::vector<Board::TileID>> tilesDieIndex;
 
         std::vector<Board::Point> points;
-        std::unordered_set<Board::PointID> validPoints;
+        std::set<Board::PointID> validPoints;
+        std::array<std::unordered_set<Board::PointID>, GameDefs::NUM_MAX_PLAYERS> validPlayerPoints;
 
         std::vector<Board::Edge> edges;
-        std::unordered_set<Board::EdgeID> validEdges;
+        std::set<Board::EdgeID> validEdges;
+        std::array<std::unordered_set<Board::EdgeID>, GameDefs::NUM_MAX_PLAYERS> validPlayerEdges;
 
         std::array<std::optional<Board::PortType>, Board::NUM_POINTS> pointPorts;
 
@@ -48,6 +51,7 @@ class GameBoard {
         void _printPoints() const;
         void _printEdges() const;
         void _printTileDieIndex() const;
+        void _printPorts() const;
 
         Card::Resource _mapTileToCard(Board::TileType type) const;
 
@@ -56,10 +60,12 @@ class GameBoard {
         void _createValidPointsAndEdges();
         void _createPortPoints();
 
-        const std::unordered_set<Board::PointID> _getAdjacentPoints(const Board::PointID pointID) const;
+        const std::set<Board::PointID> _getAdjacentPoints(const Board::PointID pointID) const;
         void _invalidatePointAndAdjacentPoints(const Board::PointID pointID);
 
-        void _checkBuildingLocationIsValid(const Board::Building &building) const;
+        void _checkBuildingLocationIsValid(const Board::Building &building, const Board::BuildPhase phase) const;
+
+        void _validateAdjacent(const Board::Building &building);
 
     public:
         void createBoard();
@@ -67,14 +73,17 @@ class GameBoard {
         
         GameBoard();
 
-        const std::unordered_set<Board::PointID>& getValidPoints() const;
-        const std::unordered_set<Board::EdgeID>& getValidEdges() const;
+        const std::set<Board::PointID>& getValidPoints() const;
+        const std::set<Board::EdgeID>& getValidEdges() const;
+
+        const std::set<Board::PointID>& getValidPoints(GameDefs::PlayerID player) const;
+        const std::set<Board::EdgeID>& getValidEdges(GameDefs::PlayerID player) const;
 
         using BuildDestination = std::variant<Board::TileID, Board::EdgeID>;
-        std::optional<Board::PortType> placeBuilding(const Board::Building &building);
+        std::optional<Board::PortType> placeBuilding(const Board::Building &building, const Board::BuildPhase phase);
 
         const std::vector<Board::TileID> getValidRobberDestinations() const;
-        std::unordered_set<GameDefs::PlayerID> placeRobber(Board::TileID destination);
+        std::set<GameDefs::PlayerID> placeRobber(Board::TileID destination);
 
         // change this to std opt
         const std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> getRollPayout(const GameDefs::PlayerID dieVal) const;

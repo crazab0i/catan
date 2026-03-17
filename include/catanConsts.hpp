@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <sys/types.h>
 
@@ -322,8 +323,18 @@ enum class BuildingType {
     Road,
     Settlement,
     City,
+    _Count,
     Unbuilt,
-};  
+};
+
+using BuildingCount = int;
+constexpr int NUM_BUILDINGS = static_cast<int>(BuildingType::_Count);
+
+inline constexpr std::array<BuildingCount, NUM_BUILDINGS> startingBuildingCounts = {
+    15,
+    5,
+    4,
+};
 
 constexpr const char* buildingTypeToString(BuildingType type) {
     switch (type) {
@@ -362,6 +373,11 @@ struct Building {
     Building(const BuildPosition position);
 
     Building(const GameDefs::PlayerID owner, const BuildingType type, const BuildPosition position);
+};
+
+enum class BuildPhase {
+    Setup,
+    Main,
 };
 
 constexpr int MAX_ADJACENT_TILES = 3;
@@ -451,6 +467,11 @@ struct SetupBuildResult {
 
     SetupBuildResult(GameDefs::PlayerID player, Board::Building settlement, Board::Building road, std::optional<Board::PortType> port, std::optional<Economy::ResourceArray> resources)
         : player(player), settlement(settlement), road(road), port(port), gained_resources(resources) {}
+};
+
+struct ValidSetupBuildLocations {
+    std::set<Board::PointID> validPoints;
+    std::set<Board::EdgeID> validEdges;
 };
 
 

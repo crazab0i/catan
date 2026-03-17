@@ -2,73 +2,108 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.patches import RegularPolygon
 import numpy as np
+import re
 
-fig, ax = plt.subplots(figsize=(8, 8))
+# ── Parse input file ──────────────────────────────────────────────────────────
+tile_types, tile_dice, tile_pts = [], [], []
+edge_endpoints = {}
 
-# Hex grid layout: rows of 3, 4, 5, 4, 3
-rows = [3, 4, 5, 4, 3]
-hex_radius = 1.0
+with open("input.txt") as f:
+    content = f.read()
+
+for m in re.finditer(
+        r'tile id: \d+[^\n]*\ntype: (\w+)\s+dice value: (\d+).*?points: ([\d ,]+)',
+        content, re.DOTALL):
+    tile_types.append(m.group(1))
+    tile_dice.append(int(m.group(2)))
+    tile_pts.append([int(p) for p in re.findall(r'\d+', m.group(3))])
+
+for m in re.finditer(r'Edge: (\d+)\na: (\d+) , b: (\d+)', content):
+    edge_endpoints[int(m.group(1))] = (int(m.group(2)), int(m.group(3)))
+
+# ── Geometry ──────────────────────────────────────────────────────────────────
+ROWS = [3, 4, 5, 4, 3]
+R    = 1.0
+W    = R * np.sqrt(3)
+H    = R * 1.5
 
 hex_colors = {
-    "Wood":   "#2d6a2d",  # dark green
-    "Sheep":  "#7ec850",  # light green
-    "Wheat":   "#f5c842",  # golden wheat
-    "Brick":    "#c1440e",  # terracotta red
-    "Ore":"#8c8c8c",  # stone grey
-    "Desert":   "#e8d5a3",  # sandy beige
+    "Wood":   "#2d6a2d",
+    "Sheep":  "#7ec850",
+    "Wheat":  "#f5c842",
+    "Brick":  "#c1440e",
+    "Ore":    "#8c8c8c",
+    "Desert": "#e8d5a3",
 }
 
-colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
-          '#1abc9c', '#e67e22', '#34495e', '#e91e63', '#00bcd4',
-          '#8bc34a', '#ff5722', '#607d8b', '#795548', '#ffc107',
-          '#03a9f4', '#4caf50', '#ff9800', '#9c27b0']
+# Tile centres
+centres = []
+for row_i, n in enumerate(ROWS):
+    x0 = -(n * W) / 2 + W / 2
+    y  = (len(ROWS) - 1 - row_i) * H
+    for col_i in range(n):
+        centres.append((x0 + col_i * W, y))
 
-colors = []
+# Point positions
+# Tile point list order: upper-left, top, upper-right, lower-right, bottom, lower-left
+# → angle for index k = 150° − k·60°
+pt_pos = {}
+for ti, (cx, cy) in enumerate(centres):
+    for k, pid in enumerate(tile_pts[ti]):
+        ang = np.radians(150 - k * 60)
+        pt_pos[pid] = (cx + R * np.cos(ang), cy + R * np.sin(ang))
 
-with open("input.txt") as file:
-    for line in file:
-        if line.startswith("type:"):
-            hex_type = line[len("type: "):].strip()
-            colors.append(hex_colors[hex_type])
+# Edge midpoints
+edge_pos = {
+    eid: ((pt_pos[a][0] + pt_pos[b][0]) / 2,
+          (pt_pos[a][1] + pt_pos[b][1]) / 2)
+    for eid, (a, b) in edge_endpoints.items()
+    if a in pt_pos and b in pt_pos
+}
 
-# Flat-top hex dimensions
-w = hex_radius * np.sqrt(3)   # horizontal spacing
-h = hex_radius * 1.5          # vertical spacing
+# ── Plot ──────────────────────────────────────────────────────────────────────
+fig, ax = plt.subplots(figsize=(16, 16))
 
-total_rows = len(rows)
-hex_index = 0
+for ti, (cx, cy) in enumerate(centres):
+    ax.add_patch(RegularPolygon(
+        (cx, cy), numVertices=6, radius=R * 0.95,
+        orientation=0,
+        facecolor=hex_colors[tile_types[ti]],
+        edgecolor='white', linewidth=2,
+    ))
+    dice     = tile_dice[ti]
+    dice_str = "–" if dice == 255 else str(dice)
+    dice_col = '#cc0000' if dice in (6, 8) else ('#aaaaaa' if dice == 255 else 'black')
+    ax.text(cx, cy + 0.22, tile_types[ti],
+            ha='center', va='center', fontsize=7.5, fontweight='bold', color='white')
+    ax.text(cx, cy - 0.22, dice_str,
+            ha='center', va='center', fontsize=13, fontweight='bold', color=dice_col)
 
-for row_i, n_hexes in enumerate(rows):
-    # Center each row horizontally
-    row_width = n_hexes * w
-    x_offset = -row_width / 2 + w / 2
-    y = (total_rows - 1 - row_i) * h
+for eid, (mx, my) in edge_pos.items():
+    ax.text(mx, my, str(eid),
+            ha='center', va='center', fontsize=5.5, color='#00008b',
+            bbox=dict(boxstyle='round,pad=0.13', fc='#ddeeff',
+                      ec='#00008b', lw=0.5, alpha=0.88))
 
-    for col_i in range(n_hexes):
-        x = x_offset + col_i * w
-        color = colors[hex_index % len(colors)]
+for pid, (px, py) in pt_pos.items():
+    ax.text(px, py, str(pid),
+            ha='center', va='center', fontsize=5.5,
+            color='white', fontweight='bold', zorder=6,
+            bbox=dict(boxstyle='round,pad=0.14', fc='#8b0000',
+                      ec='#600000', lw=0.5, alpha=0.92))
 
-        hex_patch = RegularPolygon(
-            (x, y),
-            numVertices=6,
-            radius=hex_radius * 0.95,   # slight gap between hexes
-            orientation=0,              # flat-top
-            facecolor=color,
-            edgecolor='white',
-            linewidth=2
-        )
-        ax.add_patch(hex_patch)
-
-        # Optional: label each hex
-        ax.text(x, y, str(hex_index), ha='center', va='center',
-                fontsize=12, fontweight='bold', color='white')
-
-        hex_index += 1
+legend_patches = [mpatches.Patch(fc=c, ec='grey', label=t)
+                  for t, c in hex_colors.items()]
+legend_patches += [
+    mpatches.Patch(fc='#ddeeff', ec='#00008b', label='Edge ID'),
+    mpatches.Patch(fc='#8b0000', ec='#600000', label='Point ID'),
+]
+ax.legend(handles=legend_patches, loc='lower right', fontsize=9, framealpha=0.9)
 
 ax.autoscale_view()
 ax.margins(0.1)
 ax.set_aspect('equal')
 ax.axis('off')
-plt.title('Catan Board Visualizer', fontsize=16)
+plt.title('Catan Board – Tile Type · Dice Value · Point IDs · Edge IDs', fontsize=14)
 plt.tight_layout()
 plt.show()

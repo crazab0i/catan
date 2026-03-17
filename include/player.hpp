@@ -16,6 +16,7 @@ class Player {
     Economy::ResourceArray resourceInventory = {0, 0, 0, 0, 0};
 
     std::array<Economy::CardCount, Card::NUM_DEV_TYPE> developmentCardInventory = {0, 0, 0, 0, 0};
+    std::array<Board::BuildingCount, Board::NUM_BUILDINGS> buildingInventory = Board::startingBuildingCounts; 
 
     enum class Mode {
         Addition,
