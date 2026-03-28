@@ -35,6 +35,7 @@ void Building::printBuilding() {
         case BuildingType::Settlement:  std::cout << "settlement"; break;
         case BuildingType::City:        std::cout << "city"; break;
         case BuildingType::Unbuilt:     std::cout << "unbuilt"; break;
+        default:                        throw std::runtime_error("unreachable");
     }
     std::cout << "\n";
 }   
@@ -521,7 +522,7 @@ const std::array<Economy::PlayerPayout, Card::NUM_RESOURCE_TYPE> GameBoard::getR
 
 const Economy::ResourceArray GameBoard::getInitialSettlementPayout(const Board::PointID secondPlacement) const {
     
-    Economy::ResourceArray payout;
+    Economy::ResourceArray payout = {0, 0, 0, 0, 0,};
 
     constexpr int NUM_MAX_TILES_PER_POINT = 3;
     int found = 0;

@@ -8,7 +8,7 @@ import re
 tile_types, tile_dice, tile_pts = [], [], []
 edge_endpoints = {}
 
-with open("input.txt") as f:
+with open("input.in") as f:
     content = f.read()
 
 for m in re.finditer(
